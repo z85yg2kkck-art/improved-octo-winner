@@ -1,1 +1,1 @@
-# improved-octo-winner
+# ブンブン診断
